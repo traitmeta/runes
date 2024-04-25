@@ -40,7 +40,7 @@ mime_guess = "2.0.4"
 miniscript = "10.0.0"
 mp4 = "0.14.0"
 ord-bitcoincore-rpc = "0.17.2"
-ordinals = { version = "0.0.8", path = "crates/ordinals" }
+ordinals = { version = "0.0.1", path = "crates/ordinals" }
 redb = "2.0.0"
 regex = "1.6.0"
 reqwest = { version = "0.11.23", features = ["blocking", "json"] }
@@ -54,6 +54,9 @@ serde_json = { version = "1.0.81", features = ["preserve_order"] }
 serde_with = "3.7.0"
 serde_yaml = "0.9.17"
 sha3 = "0.10.8"
+diesel = { version = "2.1.0", features = ["mysql", "numeric"] }
+bigdecimal = "0.4.3"
+dotenvy = "0.15"
 sysinfo = "0.30.3"
 tempfile = "3.2.0"
 tokio = { version = "1.17.0", features = ["rt-multi-thread"] }

@@ -1,20 +1,21 @@
-use diesel::prelude::*;
 use bigdecimal::BigDecimal;
+use diesel::prelude::*;
 
-#[derive(Queryable, Selectable)]
+#[derive(Queryable, Selectable, Insertable)]
 #[diesel(table_name = crate::schema::rune_entry)]
 #[diesel(check_for_backend(diesel::mysql::Mysql))]
-struct RuneEntryEntity {
+pub(crate) struct RuneEntryEntity {
     pub id: u64,
-    pub block: i64,
+    pub block: u64,
     pub burned: BigDecimal,
-    pub divisibility: i32,
+    pub divisibility: u8,
     pub etching: String,
     pub mints: BigDecimal,
-    pub number: i64,
+    pub number: u64,
     pub premine: BigDecimal,
     pub spaced_rune: String,
-    pub timestamp: i64,
+    pub rune_id: String,
+    pub timestamp: u64,
     pub symbol: String,
     pub turbo: bool,
     pub amount: Option<BigDecimal>,

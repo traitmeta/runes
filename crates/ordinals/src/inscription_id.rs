@@ -110,7 +110,7 @@ pub(crate) fn inscription_id(n: u32) -> InscriptionId {
   format!("{}i{n}", hex.repeat(64)).parse().unwrap()
 }
 
-pub(crate) fn txid(n: u64) -> Txid {
+pub fn txid(n: u64) -> Txid {
   let hex = format!("{n:x}");
 
   if hex.is_empty() || hex.len() > 1 {

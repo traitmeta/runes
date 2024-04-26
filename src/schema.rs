@@ -21,17 +21,17 @@ diesel::table! {
 diesel::table! {
     rune_entry (id) {
         id -> Unsigned<Bigint>,
-        block -> Bigint,
+        block -> Unsigned<Bigint>,
         burned -> Decimal,
-        divisibility -> Integer,
+        divisibility -> Unsigned<Tinyint>,
         #[max_length = 256]
         etching -> Varchar,
         #[max_length = 64]
         spaced_rune -> Varchar,
         premine -> Decimal,
         mints -> Decimal,
-        number -> Bigint,
-        timestamp -> Bigint,
+        number -> Unsigned<Bigint>,
+        timestamp -> Unsigned<Bigint>,
         #[max_length = 64]
         rune_id -> Varchar,
         turbo -> Bool,

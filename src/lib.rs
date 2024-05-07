@@ -13,6 +13,7 @@
 
 use {
     anyhow::{anyhow, bail, ensure, Context, Error},
+    bigdecimal::{BigDecimal, FromPrimitive, ToPrimitive},
     bip39::Mnemonic,
     bitcoin::{
         address::{Address, NetworkUnchecked},
@@ -66,17 +67,22 @@ use {
 };
 
 pub(crate) use self::{entry::RuneEntry, lot::Lot, model::RuneEntryEntity};
-pub use self::{schema::etching as EtchingTable, schema::rune_entry::dsl::rune_entry as RuneEntryTable};
+pub use self::{
+    schema::etching as EtchingTable, schema::rune_entry::dsl::rune_entry as RuneEntryTable,
+    schema::rune_event::dsl::rune_event as RuneEventTable,
+};
 pub use ordinals::InscriptionId;
 
 mod dao;
 mod entry;
+mod into_usize;
 mod lot;
 mod model;
 mod rune_indexer;
-mod rune_updater;
 mod runes;
 pub mod schema;
+mod updater;
+mod fetcher;
 
 type Result<T = (), E = Error> = std::result::Result<T, E>;
 
@@ -117,6 +123,26 @@ fn gracefully_shutdown_indexer() {
         log::info!("Waiting for index thread to finish...");
         if indexer.join().is_err() {
             log::warn!("Index thread panicked; join failed");
+        }
+    }
+}
+
+
+pub(crate) trait BitcoinCoreRpcResultExt<T> {
+    fn into_option(self) -> Result<Option<T>>;
+}
+
+impl<T> BitcoinCoreRpcResultExt<T> for Result<T, bitcoincore_rpc::Error> {
+    fn into_option(self) -> Result<Option<T>> {
+        match self {
+            Ok(ok) => Ok(Some(ok)),
+            Err(bitcoincore_rpc::Error::JsonRpc(bitcoincore_rpc::jsonrpc::error::Error::Rpc(
+                bitcoincore_rpc::jsonrpc::error::RpcError { code: -8, .. },
+            ))) => Ok(None),
+            Err(bitcoincore_rpc::Error::JsonRpc(bitcoincore_rpc::jsonrpc::error::Error::Rpc(
+                bitcoincore_rpc::jsonrpc::error::RpcError { message, .. },
+            ))) if message.ends_with("not found") => Ok(None),
+            Err(err) => Err(err.into()),
         }
     }
 }

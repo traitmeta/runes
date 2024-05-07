@@ -19,6 +19,20 @@ diesel::table! {
 }
 
 diesel::table! {
+    rune_balance (id) {
+        id -> Unsigned<Bigint>,
+        block -> Unsigned<Bigint>,
+        #[max_length = 64]
+        rune_id -> Varchar,
+        #[max_length = 256]
+        address -> Varchar,
+        #[max_length = 256]
+        pk_script_hex -> Varchar,
+        amount -> Decimal,
+    }
+}
+
+diesel::table! {
     rune_entry (id) {
         id -> Unsigned<Bigint>,
         block -> Unsigned<Bigint>,
@@ -32,6 +46,7 @@ diesel::table! {
         mints -> Decimal,
         number -> Unsigned<Bigint>,
         timestamp -> Unsigned<Bigint>,
+        rune -> Decimal,
         #[max_length = 64]
         rune_id -> Varchar,
         turbo -> Bool,
@@ -46,7 +61,29 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    rune_event (id) {
+        id -> Unsigned<Bigint>,
+        block -> Unsigned<Bigint>,
+        #[max_length = 256]
+        tx_id -> Varchar,
+        event_type -> Unsigned<Tinyint>,
+        #[max_length = 64]
+        rune_id -> Varchar,
+        #[max_length = 256]
+        address -> Varchar,
+        #[max_length = 256]
+        pk_script_hex -> Varchar,
+        amount -> Nullable<Decimal>,
+        vout -> Unsigned<Integer>,
+        rune_stone -> Text,
+        timestamp -> Unsigned<Bigint>,
+    }
+}
+
 diesel::allow_tables_to_appear_in_same_query!(
     etching,
+    rune_balance,
     rune_entry,
+    rune_event,
 );

@@ -10,6 +10,7 @@ CREATE TABLE `rune_entry` (
   `mints` decimal(40,0)  NOT NULL  DEFAULT 0,
   `number` BIGINT UNSIGNED NOT NULL DEFAULT 0,
   `timestamp` BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  `rune` decimal(40,0) NOT NULL DEFAULT 0,
   `rune_id` VARCHAR(64) NOT NULL,
   `turbo` boolean NOT NULL,
   `symbol` VARCHAR(8) NOT NULL,

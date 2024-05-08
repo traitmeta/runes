@@ -28,7 +28,10 @@ diesel::table! {
         address -> Varchar,
         #[max_length = 256]
         pk_script_hex -> Varchar,
+        #[max_length = 266]
+        out_point -> Varchar,
         amount -> Decimal,
+        spent -> Bool,
     }
 }
 

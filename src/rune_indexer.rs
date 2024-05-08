@@ -1,9 +1,11 @@
-use diesel::{IntoSql, MysqlConnection};
+use diesel::MysqlConnection;
 
 use self::{
-    dao::{RuneEntryDao, RuneEventDao, RuneMysqlDao},
+    dao::{RuneBlanaceDao, RuneEntryDao, RuneEventDao, RuneMysqlDao},
     entry::RuneEntry,
+    event::Event,
     into_usize::IntoUsize,
+    model::{RuneBalanceEntity, RuneEventEntity},
 };
 
 use super::*;
@@ -26,11 +28,17 @@ impl<'client, 'conn> RuneIndexer<'client, 'conn> {
         let mut outpoint_to_balances: HashMap<OutPoint, Vec<(RuneId, Lot)>> = HashMap::new();
         let mut created_rune_entry: Option<(Txid, Artifact, RuneId, Rune)> = None;
         let mut runes_mints: Option<(RuneId, Lot)> = None;
+        let mut events: Vec<Event> = Vec::new();
         if let Some(art) = &artifact {
             if let Some(id) = art.mint() {
                 if let Some(amount) = self.mint(id, &mut runes_mints)? {
                     *unallocated.entry(id).or_default() += amount;
-                    // TODO 增加 MINT 事件记录
+                    events.push(Event::RuneMinted {
+                        amount: amount.n(),
+                        block_height: self.height,
+                        txid,
+                        rune_id: id,
+                    })
                 }
             }
 
@@ -40,6 +48,13 @@ impl<'client, 'conn> RuneIndexer<'client, 'conn> {
                 if let Some((id, ..)) = etched {
                     *unallocated.entry(id).or_default() +=
                         runestone.etching.unwrap().premine.unwrap_or_default();
+
+                    // Etch event
+                    events.push(Event::RuneEtched {
+                        block_height: self.height,
+                        txid,
+                        rune_id: id,
+                    })
                 }
 
                 for Edict { id, amount, output } in runestone.edicts.iter().copied() {
@@ -118,7 +133,6 @@ impl<'client, 'conn> RuneIndexer<'client, 'conn> {
 
             if let Some((id, rune)) = etched {
                 created_rune_entry = Some((txid, art.clone(), id, rune));
-                // self.create_rune_entry(txid, artifact, id, rune)?;
             }
         }
 
@@ -129,6 +143,7 @@ impl<'client, 'conn> RuneIndexer<'client, 'conn> {
             }
         } else {
             let pointer = &artifact
+                .clone()
                 .map(|art| match art {
                     Artifact::Runestone(runestone) => runestone.pointer,
                     Artifact::Cenotaph(_) => unreachable!(),
@@ -192,44 +207,38 @@ impl<'client, 'conn> RuneIndexer<'client, 'conn> {
                     .and_modify(|balances| balances.push((id, balance)))
                     .or_insert(vec![(id, balance)]);
 
-                // TODO 增加 transfer event
-                // if let Some(sender) = self.event_sender {
-                //     sender.blocking_send(Event::RuneTransferred {
-                //         outpoint,
-                //         block_height: self.height,
-                //         txid,
-                //         rune_id: id,
-                //         amount: balance.0,
-                //     })?;
-                // }
+                // transfer event
+                events.push(Event::RuneTransferred {
+                    outpoint,
+                    block_height: self.height,
+                    txid,
+                    rune_id: id,
+                    amount: balance.0,
+                })
             }
         }
 
         // increment entries with burned runes
-        // for (id, amount) in burned {
-        //     *self.burned.entry(id).or_default() += amount;
-
-        //     // TODO 增加burn event
-        //     // if let Some(sender) = self.event_sender {
-        //     //     sender.blocking_send(Event::RuneBurned {
-        //     //         block_height: self.height,
-        //     //         txid,
-        //     //         rune_id: id,
-        //     //         amount: amount.n(),
-        //     //     })?;
-        //     // }
-        // }
-
-        self.update(&burned, runes_mints)?;
+        for (id, amount) in burned.iter() {
+            // burn event
+            events.push(Event::RuneBurned {
+                block_height: self.height,
+                txid,
+                rune_id: *id,
+                amount: amount.n(),
+            })
+        }
 
         if let Some((txid, art, rune_id, rune)) = created_rune_entry {
             self.create_rune_entry(txid, art, rune_id, rune)?;
         };
 
+        self.update(&burned, runes_mints)?;
+        self.create_rune_event(events, tx, &artifact)?;
+
         Ok(())
     }
 
-    // TODO 使用数据库事物
     fn mint(&mut self, id: RuneId, mints: &mut Option<(RuneId, Lot)>) -> Result<Option<Lot>> {
         let mut rune_entry = match RuneMysqlDao::load_rune_entry(&mut self.conn, &id) {
             Ok(entry) => entry,
@@ -258,14 +267,13 @@ impl<'client, 'conn> RuneIndexer<'client, 'conn> {
                 Ok(entry) => {
                     for event in entry.iter() {
                         let rune_id = RuneId::from_str(event.rune_id.as_str()).unwrap();
-                        if let Some(amount) = &event.amount {
-                            let a = BigDecimal::to_u128(&amount).unwrap();
-                            *unallocated.entry(rune_id).or_default() += a;
-                        }
+                        let a = BigDecimal::to_u128(&event.amount).unwrap();
+                        *unallocated.entry(rune_id).or_default() += a;
                     }
                 }
                 Err(_) => {}
             }
+            RuneMysqlDao::update_spend_out_point(&mut self.conn, &input.previous_output)?;
         }
 
         Ok(unallocated)
@@ -467,15 +475,156 @@ impl<'client, 'conn> RuneIndexer<'client, 'conn> {
 
         RuneMysqlDao::store_rune_entry(&mut self.conn, &id, &entry)?;
 
-        // TODO 记录Etch event
-        // if let Some(sender) = self.event_sender {
-        //     sender.blocking_send(Event::RuneEtched {
-        //         block_height: self.height,
-        //         txid,
-        //         rune_id: id,
-        //     })?;
-        // }
+        Ok(())
+    }
 
+    fn create_rune_event(
+        &mut self,
+        events: Vec<Event>,
+        tx: &Transaction,
+        art: &Option<Artifact>,
+    ) -> Result {
+        let mut entities: Vec<RuneEventEntity> = Vec::new();
+        let art = art
+            .as_ref()
+            .map_or("".to_string(), |art| serde_json::to_string(art).unwrap());
+        for event in events.iter() {
+            match event {
+                Event::RuneBurned {
+                    amount,
+                    block_height,
+                    rune_id,
+                    txid,
+                } => {
+                    let entity = RuneEventEntity {
+                        id: 0,
+                        block: *block_height as u64,
+                        event_type: 4,
+                        tx_id: txid.to_string(),
+                        rune_id: rune_id.to_string(),
+                        amount: BigDecimal::from_u128(*amount),
+                        address: "".to_string(),
+                        pk_script_hex: "".to_string(),
+                        vout: 0,
+                        rune_stone: art.clone(),
+                        timestamp: self.block_time as u64,
+                    };
+                    entities.push(entity);
+                }
+                Event::RuneEtched {
+                    block_height,
+                    rune_id,
+                    txid,
+                } => {
+                    let entity = RuneEventEntity {
+                        id: 0,
+                        block: *block_height as u64,
+                        event_type: 1,
+                        tx_id: txid.to_string(),
+                        rune_id: rune_id.to_string(),
+                        amount: None,
+                        address: "".to_string(),
+                        pk_script_hex: "".to_string(),
+                        vout: 0,
+                        rune_stone: art.clone(),
+                        timestamp: self.block_time as u64,
+                    };
+                    entities.push(entity);
+                }
+                Event::RuneMinted {
+                    amount,
+                    block_height,
+                    rune_id,
+                    txid,
+                } => {
+                    let entity = RuneEventEntity {
+                        id: 0,
+                        block: *block_height as u64,
+                        event_type: 2,
+                        tx_id: txid.to_string(),
+                        rune_id: rune_id.to_string(),
+                        amount: BigDecimal::from_u128(*amount),
+                        address: "".to_string(),
+                        pk_script_hex: "".to_string(),
+                        vout: 0,
+                        rune_stone: art.clone(),
+                        timestamp: self.block_time as u64,
+                    };
+                    entities.push(entity);
+                }
+                Event::RuneTransferred {
+                    amount,
+                    block_height,
+                    outpoint,
+                    rune_id,
+                    txid,
+                } => {
+                    let addr = Address::from_script(
+                        tx.output[outpoint.vout as usize].script_pubkey.as_script(),
+                        Network::Bitcoin,
+                    )
+                    .unwrap();
+                    let entity = RuneEventEntity {
+                        id: 0,
+                        block: *block_height as u64,
+                        event_type: 3,
+                        tx_id: txid.to_string(),
+                        rune_id: rune_id.to_string(),
+                        amount: BigDecimal::from_u128(*amount),
+                        address: addr.to_string(),
+                        pk_script_hex: tx.output[outpoint.vout as usize]
+                            .script_pubkey
+                            .to_hex_string(),
+                        vout: outpoint.vout,
+                        rune_stone: art.clone(),
+                        timestamp: self.block_time as u64,
+                    };
+                    entities.push(entity);
+                }
+                _ => {}
+            }
+        }
+
+        if entities.is_empty() {
+            return Ok(());
+        }
+
+        RuneMysqlDao::store_events(&mut self.conn, &entities)?;
+        Ok(())
+    }
+
+    fn create_rune_balance(
+        &mut self,
+        balances: HashMap<OutPoint, Vec<(RuneId, Lot)>>,
+        tx: &Transaction,
+    ) -> Result {
+        let mut entities: Vec<RuneBalanceEntity> = Vec::new();
+        for (key, val) in balances.iter() {
+            for (rune_id, lot) in val.iter() {
+                let addr = Address::from_script(
+                    tx.output[key.vout as usize].script_pubkey.as_script(),
+                    Network::Bitcoin,
+                )
+                .unwrap();
+                let entity = RuneBalanceEntity {
+                    id: 0,
+                    block: self.height as u64,
+                    rune_id: rune_id.to_string(),
+                    amount: BigDecimal::from_u128(lot.n()).unwrap(),
+                    address: addr.to_string(),
+                    pk_script_hex: tx.output[key.vout as usize].script_pubkey.to_hex_string(),
+                    out_point: key.to_string(),
+                    spent: false,
+                };
+                entities.push(entity);
+            }
+        }
+
+        if entities.is_empty() {
+            return Ok(());
+        }
+
+        RuneMysqlDao::store_balances(&mut self.conn, &entities)?;
         Ok(())
     }
 }

@@ -227,7 +227,7 @@ impl<'index> Updater<'index> {
                 client: &self.client,
                 height: self.height,
                 minimum: Rune::minimum_at_height(Network::Bitcoin, Height(self.height)),
-                runes: gets_rune_number.unwrap_or_default(),
+                runes: gets_rune_number.map_or(0, |f| f + 1),
                 conn: &mut self.conn,
             };
 
@@ -269,6 +269,6 @@ mod tests {
             conn: conn,
         };
 
-        updater.update_index("192.168.103.162:8332", "foo", "TQlDLNY6eJzZ5fYw");
+        let _ = updater.update_index("192.168.103.162:8332", "foo", "TQlDLNY6eJzZ5fYw");
     }
 }

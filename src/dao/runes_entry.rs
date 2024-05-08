@@ -3,7 +3,6 @@ use bigdecimal::BigDecimal;
 use bigdecimal::ToPrimitive;
 use diesel::MysqlConnection;
 use diesel::QueryDsl;
-use futures::future::ok;
 
 pub fn convert_rune_entry_to_model(rune_id: &RuneId, runes_entry: &RuneEntry) -> RuneEntryEntity {
     let mut entity = RuneEntryEntity {

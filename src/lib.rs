@@ -69,7 +69,7 @@ use {
 pub(crate) use self::{entry::RuneEntry, lot::Lot, model::RuneEntryEntity};
 pub use self::{
     schema::etching as EtchingTable, schema::rune_entry::dsl::rune_entry as RuneEntryTable,
-    schema::rune_event::dsl::rune_event as RuneEventTable,
+    schema::rune_event::dsl::rune_event as RuneEventTable,schema::rune_balance::dsl::rune_balance as RuneBalanceTable,
 };
 pub use ordinals::InscriptionId;
 
@@ -83,6 +83,7 @@ mod runes;
 pub mod schema;
 mod updater;
 mod fetcher;
+mod event;
 
 type Result<T = (), E = Error> = std::result::Result<T, E>;
 

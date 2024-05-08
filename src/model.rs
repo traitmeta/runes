@@ -54,4 +54,6 @@ pub(crate) struct RuneBalanceEntity {
     pub amount: BigDecimal,
     pub address: String,
     pub pk_script_hex: String,
+    pub out_point: String,
+    pub spent: bool,
 }

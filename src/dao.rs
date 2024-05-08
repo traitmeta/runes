@@ -1,9 +1,12 @@
+use self::model::RuneBalanceEntity;
 use self::model::RuneEventEntity;
+use bitcoin::string;
 use diesel::prelude::*;
 use diesel::MysqlConnection;
 
 use super::*;
 
+mod runes_balance;
 mod runes_entry;
 mod runes_event;
 
@@ -15,7 +18,10 @@ pub fn new_db_conn(database_url: &str) -> MysqlConnection {
 }
 
 pub trait RuneEntryDao {
-    fn gets_rune_entry(conn: &mut MysqlConnection, ids: Vec<String>) -> Result<Vec<RuneEntryEntity>>;
+    fn gets_rune_entry(
+        conn: &mut MysqlConnection,
+        ids: Vec<String>,
+    ) -> Result<Vec<RuneEntryEntity>>;
     fn load_entry_by_rune(conn: &mut MysqlConnection, _rune: &Rune) -> Result<RuneEntry>;
     fn load_rune_entry(conn: &mut MysqlConnection, id: &RuneId) -> Result<RuneEntry>;
     fn store_rune_entry(conn: &mut MysqlConnection, id: &RuneId, entry: &RuneEntry) -> Result<()>;
@@ -26,11 +32,16 @@ pub trait RuneEntryDao {
 }
 
 pub trait RuneEventDao {
+    fn load(conn: &mut MysqlConnection, id: u64) -> Result<RuneEventEntity>;
+    fn store_events(conn: &mut MysqlConnection, entry: &Vec<RuneEventEntity>) -> Result<()>;
+    fn delete(conn: &mut MysqlConnection, id: &Txid) -> Result<()>;
+}
+
+pub trait RuneBlanaceDao {
     fn load_by_outpoint(
         conn: &mut MysqlConnection,
         outpoint: &OutPoint,
-    ) -> Result<Vec<RuneEventEntity>>;
-    fn load(conn: &mut MysqlConnection, id: u64) -> Result<RuneEventEntity>;
-    fn store(conn: &mut MysqlConnection, entry: &RuneEventEntity) -> Result<()>;
-    fn delete(conn: &mut MysqlConnection, id: &Txid) -> Result<()>;
+    ) -> Result<Vec<RuneBalanceEntity>>;
+    fn update_spend_out_point(conn: &mut MysqlConnection, outpoint: &OutPoint) -> Result<()>;
+    fn store_balances(conn: &mut MysqlConnection, entry: &Vec<RuneBalanceEntity>) -> Result<()>;
 }

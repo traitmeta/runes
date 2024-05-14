@@ -10,18 +10,18 @@ use self::{
 
 use super::*;
 
-pub(super) struct RuneIndexer<'client, 'conn> {
-    pub(super) block_time: u32,
-    pub(super) burned: HashMap<RuneId, Lot>,
-    pub(super) client: &'client Client,
-    pub(super) height: u32,
-    pub(super) minimum: Rune,
-    pub(super) runes: u64,
-    pub(super) conn: &'conn mut MysqlConnection,
+pub struct RuneIndexer<'client, 'conn> {
+    pub block_time: u32,
+    pub burned: HashMap<RuneId, Lot>,
+    pub client: &'client Client,
+    pub height: u32,
+    pub minimum: Rune,
+    pub runes: u64,
+    pub conn: &'conn mut MysqlConnection,
 }
 
 impl<'client, 'conn> RuneIndexer<'client, 'conn> {
-    pub(super) fn parse_tx(&mut self, tx_index: u32, tx: &Transaction, txid: Txid) -> Result<()> {
+    pub fn parse_tx(&mut self, tx_index: u32, tx: &Transaction, txid: Txid) -> Result<()> {
         let artifact = Runestone::decipher(tx);
         let mut unallocated = self.unallocated(tx)?;
         let mut allocated: Vec<HashMap<RuneId, Lot>> = vec![HashMap::new(); tx.output.len()];
@@ -270,8 +270,11 @@ impl<'client, 'conn> RuneIndexer<'client, 'conn> {
                         let a = BigDecimal::to_u128(&event.amount).unwrap();
                         *unallocated.entry(rune_id).or_default() += a;
                     }
-                    if !entry.is_empty(){
-                        RuneMysqlDao::update_spend_out_point(&mut self.conn, &input.previous_output)?;
+                    if !entry.is_empty() {
+                        RuneMysqlDao::update_spend_out_point(
+                            &mut self.conn,
+                            &input.previous_output,
+                        )?;
                     }
                 }
                 Err(_) => {}
@@ -281,7 +284,48 @@ impl<'client, 'conn> RuneIndexer<'client, 'conn> {
         Ok(unallocated)
     }
 
-    pub(super) fn update(
+    // TODO use for calc_unallocated
+    fn fast_unallocated(
+        &mut self,
+        tx: &Transaction,
+    ) -> Result<(HashMap<RuneId, Lot>, HashMap<String, bool>)> {
+        // map of rune ID to un-allocated balance of that rune
+        let mut unallocated: HashMap<RuneId, Lot> = HashMap::new();
+        let mut spent_outpoints = HashMap::new();
+        let mut outpoints = Vec::new();
+        for input in &tx.input {
+            outpoints.push(input.previous_output.to_string());
+        }
+
+        match RuneMysqlDao::load_by_outpoints(&mut self.conn, outpoints) {
+            Ok(entry) => {
+                // increment unallocated runes with the runes in tx inputs
+                for event in entry.iter() {
+                    let rune_id = RuneId::from_str(event.rune_id.as_str()).unwrap();
+                    let a = BigDecimal::to_u128(&event.amount).unwrap();
+                    *unallocated.entry(rune_id).or_default() += a;
+                    spent_outpoints.insert(event.out_point.clone(), true);
+                }
+            }
+            Err(_) => {}
+        }
+
+        Ok((unallocated, spent_outpoints))
+    }
+
+    // TODO is not implemented
+    pub fn write_all_todb_once(&mut self, spent_outpoints: HashMap<String, bool>) -> Result {
+        let mut outpoints = Vec::new();
+        for (k, v) in spent_outpoints.iter() {
+            if *v {
+                outpoints.push(k.clone());
+            }
+        }
+
+        RuneMysqlDao::updates_spend_out_point(&mut self.conn, outpoints)
+    }
+
+    pub fn update(
         &mut self,
         burned: &HashMap<RuneId, Lot>,
         mints: Option<(RuneId, Lot)>,

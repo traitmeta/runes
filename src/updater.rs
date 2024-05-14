@@ -1,9 +1,6 @@
 use {
     super::{fetcher::Fetcher, *},
-    crate::{
-        dao::{RuneEntryDao, RuneMysqlDao},
-        rune_indexer::RuneIndexer,
-    },
+    crate::dao::{RuneEntryDao, RuneMysqlDao},
     bitcoincore_rpc::Auth,
     diesel::MysqlConnection,
     futures::future::try_join_all,

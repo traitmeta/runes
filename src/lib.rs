@@ -66,25 +66,23 @@ use {
     tokio::{runtime::Runtime, task},
 };
 
-pub(crate) use self::{entry::RuneEntry, lot::Lot, model::RuneEntryEntity};
+pub(crate) use self::{entry::RuneEntry, model::RuneEntryEntity};
 pub use self::{
-    schema::etching as EtchingTable, schema::rune_entry::dsl::rune_entry as RuneEntryTable,
-    schema::rune_event::dsl::rune_event as RuneEventTable,schema::rune_balance::dsl::rune_balance as RuneBalanceTable,
+    indexer::{Lot, MintError, RuneIndexer},
+    schema::etching as EtchingTable,
+    schema::rune_balance::dsl::rune_balance as RuneBalanceTable,
+    schema::rune_entry::dsl::rune_entry as RuneEntryTable,
+    schema::rune_event::dsl::rune_event as RuneEventTable,
 };
 pub use ordinals::InscriptionId;
 
 mod dao;
 mod entry;
-mod into_usize;
-mod lot;
+mod fetcher;
+mod indexer;
 mod model;
-mod rune_indexer;
-mod runes;
 pub mod schema;
 mod updater;
-mod fetcher;
-mod event;
-mod tx_detail;
 
 type Result<T = (), E = Error> = std::result::Result<T, E>;
 
@@ -128,7 +126,6 @@ fn gracefully_shutdown_indexer() {
         }
     }
 }
-
 
 pub(crate) trait BitcoinCoreRpcResultExt<T> {
     fn into_option(self) -> Result<Option<T>>;

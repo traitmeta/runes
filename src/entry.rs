@@ -1,5 +1,3 @@
-use self::runes::MintError;
-
 use super::*;
 
 pub(crate) trait Entry: Sized {

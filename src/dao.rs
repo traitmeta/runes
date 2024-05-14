@@ -1,6 +1,5 @@
 use self::model::RuneBalanceEntity;
 use self::model::RuneEventEntity;
-use bitcoin::string;
 use diesel::prelude::*;
 use diesel::MysqlConnection;
 
@@ -38,10 +37,15 @@ pub trait RuneEventDao {
 }
 
 pub trait RuneBlanaceDao {
+    fn load_by_outpoints(
+        conn: &mut MysqlConnection,
+        outpoints: Vec<String>,
+    ) -> Result<Vec<RuneBalanceEntity>>;
     fn load_by_outpoint(
         conn: &mut MysqlConnection,
         outpoint: &OutPoint,
     ) -> Result<Vec<RuneBalanceEntity>>;
+    fn updates_spend_out_point(conn: &mut MysqlConnection, outpoints: Vec<String>) -> Result;
     fn update_spend_out_point(conn: &mut MysqlConnection, outpoint: &OutPoint) -> Result<()>;
     fn store_balances(conn: &mut MysqlConnection, entry: &Vec<RuneBalanceEntity>) -> Result<()>;
 }

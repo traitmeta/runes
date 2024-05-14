@@ -21,7 +21,7 @@ impl RuneEventDao for RuneMysqlDao {
             .unwrap();
 
         if insert_rows == 0 {
-            return Err(anyhow!("insert rune entry failed"));
+            return Err(anyhow!("store_events failed"));
         }
 
         Ok(())
@@ -34,7 +34,7 @@ impl RuneEventDao for RuneMysqlDao {
             .expect("Error deleting rune entry");
 
         if effect_rows == 0 {
-            return Err(anyhow!("insert rune entry failed"));
+            return Err(anyhow!("delete event failed"));
         }
 
         Ok(())

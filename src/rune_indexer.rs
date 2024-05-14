@@ -235,7 +235,7 @@ impl<'client, 'conn> RuneIndexer<'client, 'conn> {
 
         self.update(&burned, runes_mints)?;
         self.create_rune_event(events, tx, &artifact)?;
-
+        self.create_rune_balance(outpoint_to_balances, tx)?;
         Ok(())
     }
 
@@ -270,10 +270,12 @@ impl<'client, 'conn> RuneIndexer<'client, 'conn> {
                         let a = BigDecimal::to_u128(&event.amount).unwrap();
                         *unallocated.entry(rune_id).or_default() += a;
                     }
+                    if !entry.is_empty(){
+                        RuneMysqlDao::update_spend_out_point(&mut self.conn, &input.previous_output)?;
+                    }
                 }
                 Err(_) => {}
             }
-            RuneMysqlDao::update_spend_out_point(&mut self.conn, &input.previous_output)?;
         }
 
         Ok(unallocated)

@@ -27,7 +27,7 @@ impl RuneBlanaceDao for RuneMysqlDao {
                 .expect("Error update rune entry");
 
         if effect_rows == 0 {
-            return Err(anyhow!("insert rune entry failed"));
+            return Err(anyhow!("update_spend_out_point failed"));
         }
 
         Ok(())
@@ -40,7 +40,7 @@ impl RuneBlanaceDao for RuneMysqlDao {
             .unwrap();
 
         if insert_rows == 0 {
-            return Err(anyhow!("insert rune entry failed"));
+            return Err(anyhow!("store_balances failed"));
         }
 
         Ok(())

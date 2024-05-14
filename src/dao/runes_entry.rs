@@ -146,7 +146,7 @@ impl RuneEntryDao for RuneMysqlDao {
             .unwrap();
 
         if insert_rows == 0 {
-            return Err(anyhow!("insert rune entry failed"));
+            return Err(anyhow!("store_rune_entry failed"));
         }
 
         Ok(())
@@ -161,7 +161,7 @@ impl RuneEntryDao for RuneMysqlDao {
             .expect("Error update rune entry");
 
         if effect_rows == 0 {
-            return Err(anyhow!("insert rune entry failed"));
+            return Err(anyhow!("update_rune_mints failed"));
         }
 
         Ok(())
@@ -176,7 +176,7 @@ impl RuneEntryDao for RuneMysqlDao {
             .expect("Error update rune entry");
 
         if effect_rows == 0 {
-            return Err(anyhow!("insert rune entry failed"));
+            return Err(anyhow!("update_rune_burned failed"));
         }
 
         Ok(())
@@ -189,7 +189,7 @@ impl RuneEntryDao for RuneMysqlDao {
             .expect("Error deleting rune entry");
 
         if effect_rows == 0 {
-            return Err(anyhow!("insert rune entry failed"));
+            return Err(anyhow!("delete_rune_entry failed"));
         }
 
         Ok(())

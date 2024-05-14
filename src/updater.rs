@@ -269,6 +269,11 @@ mod tests {
             conn: conn,
         };
 
-        let _ = updater.update_index("192.168.103.162:8332", "foo", "TQlDLNY6eJzZ5fYw");
+        match updater.update_index("192.168.103.162:8332", "foo", "TQlDLNY6eJzZ5fYw") {
+            Ok(_) => {}
+            Err(e) => {
+                println!("{}", e);
+            }
+        }
     }
 }

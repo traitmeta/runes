@@ -83,6 +83,7 @@ mod indexer;
 mod model;
 pub mod schema;
 mod updater;
+mod mempool;
 
 type Result<T = (), E = Error> = std::result::Result<T, E>;
 

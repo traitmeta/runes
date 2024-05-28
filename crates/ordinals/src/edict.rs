@@ -21,4 +21,18 @@ impl Edict {
 
     Some(Self { id, amount, output })
   }
+
+  pub fn from_integers_simple(output_len : u32, id: RuneId, amount: u128, output: u128) -> Option<Self> {
+    let Ok(output) = u32::try_from(output) else {
+      return None;
+    };
+
+    // note that this allows `output == tx.output.len()`, which means to divide
+    // amount between all non-OP_RETURN outputs
+    if output > output_len {
+      return None;
+    }
+
+    Some(Self { id, amount, output })
+  }
 }

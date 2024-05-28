@@ -465,7 +465,7 @@ impl<'client, 'conn> RuneIndexer<'client, 'conn> {
         artifact: Artifact,
         id: RuneId,
         rune: Rune,
-    ) -> Result {
+    ) -> Result<RuneEntry> {
         // self.rune_to_id.insert(rune.store(), id.store())?;
         // self.transaction_id_to_rune
         //     .insert(&txid.store(), rune.store())?;
@@ -521,7 +521,7 @@ impl<'client, 'conn> RuneIndexer<'client, 'conn> {
 
         RuneMysqlDao::store_rune_entry(&mut self.conn, &id, &entry)?;
 
-        Ok(())
+        Ok(entry)
     }
 
     fn create_rune_event(
@@ -529,7 +529,7 @@ impl<'client, 'conn> RuneIndexer<'client, 'conn> {
         events: Vec<Event>,
         tx: &Transaction,
         art: &Option<Artifact>,
-    ) -> Result {
+    ) -> Result<Vec<RuneEventEntity>> {
         let mut entities: Vec<RuneEventEntity> = Vec::new();
         let art = art
             .as_ref()
@@ -627,23 +627,22 @@ impl<'client, 'conn> RuneIndexer<'client, 'conn> {
                     };
                     entities.push(entity);
                 }
-                _ => {}
             }
         }
 
         if entities.is_empty() {
-            return Ok(());
+            return Ok(entities);
         }
 
         RuneMysqlDao::store_events(&mut self.conn, &entities)?;
-        Ok(())
+        Ok(entities)
     }
 
     fn create_rune_balance(
         &mut self,
         balances: HashMap<OutPoint, Vec<(RuneId, Lot)>>,
         tx: &Transaction,
-    ) -> Result {
+    ) -> Result<Vec<RuneBalanceEntity>> {
         let mut entities: Vec<RuneBalanceEntity> = Vec::new();
         for (key, val) in balances.iter() {
             for (rune_id, lot) in val.iter() {
@@ -667,10 +666,24 @@ impl<'client, 'conn> RuneIndexer<'client, 'conn> {
         }
 
         if entities.is_empty() {
-            return Ok(());
+            return Ok(entities);
         }
 
         RuneMysqlDao::store_balances(&mut self.conn, &entities)?;
+        Ok(entities)
+    }
+
+    fn store_all_at_once(
+        &mut self,
+        rune_entity: (RuneId, RuneEntry),
+        event_entities: Vec<RuneEventEntity>,
+        balance_entities: Vec<RuneBalanceEntity>,
+    ) -> Result {
+        let (id, entity) = rune_entity;
+        RuneMysqlDao::store_rune_entry(&mut self.conn, &id, &entity)?;
+        RuneMysqlDao::store_events(&mut self.conn, &event_entities)?;
+        RuneMysqlDao::store_balances(&mut self.conn, &balance_entities)?;
+
         Ok(())
     }
 }

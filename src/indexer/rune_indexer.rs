@@ -231,21 +231,21 @@ impl<'client, 'conn> RuneIndexer<'client, 'conn> {
 
         let mut rune_entity: Option<(RuneId, RuneEntry)> = None;
         if let Some((txid, art, rune_id, rune)) = created_rune_entry {
-            rune_entity = Some((rune_id, self.create_rune_entry(txid, art, rune_id, rune)?));
+            rune_entity = Some((rune_id, self.build_rune_entry(txid, art, rune_id, rune)?));
         };
 
         // TODO remove all this function have return's db opr
-        let burned = self.find_all_burned_rune(&burned)?;
+        let burned = self.build_all_burned_rune(&burned)?;
         // self.update(&burned, runes_mints)?;
-        let event_entities = self.create_rune_event(events, tx, &artifact)?;
-        let balance_entities = self.create_rune_balance(outpoint_to_balances, tx)?;
+        let event_entities = self.build_rune_event(events, tx, &artifact)?;
+        let balance_entities = self.build_rune_balance(outpoint_to_balances, tx)?;
         self.store_all_at_once(
             rune_entity,
             event_entities,
             balance_entities,
             burned,
             runes_mints,
-        );
+        )?;
 
         Ok(())
     }
@@ -470,7 +470,7 @@ impl<'client, 'conn> RuneIndexer<'client, 'conn> {
         Ok(false)
     }
 
-    fn create_rune_entry(
+    fn build_rune_entry(
         &mut self,
         txid: Txid,
         artifact: Artifact,
@@ -535,7 +535,7 @@ impl<'client, 'conn> RuneIndexer<'client, 'conn> {
         Ok(entry)
     }
 
-    fn create_rune_event(
+    fn build_rune_event(
         &mut self,
         events: Vec<Event>,
         tx: &Transaction,
@@ -649,7 +649,7 @@ impl<'client, 'conn> RuneIndexer<'client, 'conn> {
         Ok(entities)
     }
 
-    fn create_rune_balance(
+    fn build_rune_balance(
         &mut self,
         balances: HashMap<OutPoint, Vec<(RuneId, Lot)>>,
         tx: &Transaction,
@@ -717,7 +717,7 @@ impl<'client, 'conn> RuneIndexer<'client, 'conn> {
         Ok(())
     }
 
-    pub fn find_all_burned_rune(
+    fn build_all_burned_rune(
         &mut self,
         burned: &HashMap<RuneId, Lot>,
     ) -> Result<Vec<RuneEntryEntity>> {

@@ -1,8 +1,9 @@
 use bigdecimal::BigDecimal;
 use diesel::prelude::*;
 
-#[derive(Queryable, Selectable, Insertable)]
+#[derive(Queryable, Selectable, Insertable, AsChangeset)]
 #[diesel(table_name = crate::schema::rune_entry)]
+#[diesel(primary_key(id))]
 #[diesel(check_for_backend(diesel::mysql::Mysql))]
 pub(crate) struct RuneEntryEntity {
     pub id: u64,

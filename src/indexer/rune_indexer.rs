@@ -229,13 +229,24 @@ impl<'client, 'conn> RuneIndexer<'client, 'conn> {
             })
         }
 
+        let mut rune_entity: Option<(RuneId, RuneEntry)> = None;
         if let Some((txid, art, rune_id, rune)) = created_rune_entry {
-            self.create_rune_entry(txid, art, rune_id, rune)?;
+            rune_entity = Some((rune_id, self.create_rune_entry(txid, art, rune_id, rune)?));
         };
 
-        self.update(&burned, runes_mints)?;
-        self.create_rune_event(events, tx, &artifact)?;
-        self.create_rune_balance(outpoint_to_balances, tx)?;
+        // TODO remove all this function have return's db opr
+        let burned = self.find_all_burned_rune(&burned)?;
+        // self.update(&burned, runes_mints)?;
+        let event_entities = self.create_rune_event(events, tx, &artifact)?;
+        let balance_entities = self.create_rune_balance(outpoint_to_balances, tx)?;
+        self.store_all_at_once(
+            rune_entity,
+            event_entities,
+            balance_entities,
+            burned,
+            runes_mints,
+        );
+
         Ok(())
     }
 
@@ -519,7 +530,7 @@ impl<'client, 'conn> RuneIndexer<'client, 'conn> {
             }
         };
 
-        RuneMysqlDao::store_rune_entry(&mut self.conn, &id, &entry)?;
+        // RuneMysqlDao::store_rune_entry(&mut self.conn, &id, &entry)?;
 
         Ok(entry)
     }
@@ -630,11 +641,11 @@ impl<'client, 'conn> RuneIndexer<'client, 'conn> {
             }
         }
 
-        if entities.is_empty() {
-            return Ok(entities);
-        }
+        // if entities.is_empty() {
+        //     return Ok(entities);
+        // }
 
-        RuneMysqlDao::store_events(&mut self.conn, &entities)?;
+        // RuneMysqlDao::store_events(&mut self.conn, &entities)?;
         Ok(entities)
     }
 
@@ -665,24 +676,43 @@ impl<'client, 'conn> RuneIndexer<'client, 'conn> {
             }
         }
 
-        if entities.is_empty() {
-            return Ok(entities);
-        }
+        // if entities.is_empty() {
+        //     return Ok(entities);
+        // }
 
-        RuneMysqlDao::store_balances(&mut self.conn, &entities)?;
+        // RuneMysqlDao::store_balances(&mut self.conn, &entities)?;
         Ok(entities)
     }
 
+    // TODO use db transaction
     fn store_all_at_once(
         &mut self,
-        rune_entity: (RuneId, RuneEntry),
+        rune_entity: Option<(RuneId, RuneEntry)>,
         event_entities: Vec<RuneEventEntity>,
         balance_entities: Vec<RuneBalanceEntity>,
+        burned: Vec<RuneEntryEntity>,
+        mints: Option<(RuneId, Lot)>,
     ) -> Result {
-        let (id, entity) = rune_entity;
-        RuneMysqlDao::store_rune_entry(&mut self.conn, &id, &entity)?;
+        match rune_entity {
+            Some((id, entity)) => RuneMysqlDao::store_rune_entry(&mut self.conn, &id, &entity)?,
+            None => {}
+        };
+
         RuneMysqlDao::store_events(&mut self.conn, &event_entities)?;
         RuneMysqlDao::store_balances(&mut self.conn, &balance_entities)?;
+
+        for burn in burned.iter() {
+            let rune_id = RuneId::from_str(burn.rune_id.as_str()).unwrap();
+            RuneMysqlDao::update_rune_burned(
+                &mut self.conn,
+                &rune_id,
+                burn.burned.to_u128().unwrap(),
+            )?;
+        }
+
+        if let Some((rune_id, mint)) = mints {
+            RuneMysqlDao::update_rune_mints(&mut self.conn, &rune_id, mint.n())?;
+        }
 
         Ok(())
     }

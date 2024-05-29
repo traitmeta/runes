@@ -686,4 +686,30 @@ impl<'client, 'conn> RuneIndexer<'client, 'conn> {
 
         Ok(())
     }
+
+    pub fn find_all_burned_rune(
+        &mut self,
+        burned: &HashMap<RuneId, Lot>,
+    ) -> Result<Vec<RuneEntryEntity>> {
+        let mut rune_ids = Vec::new();
+        let mut rune_id_val_map: HashMap<String, Lot> = HashMap::new();
+        for (rune_id, burn) in burned.iter() {
+            rune_ids.push(rune_id.to_string());
+            rune_id_val_map.insert(rune_id.to_string(), *burn);
+        }
+
+        let mut runes_entry = match RuneMysqlDao::gets_rune_entry(&mut self.conn, rune_ids) {
+            Ok(entry) => entry,
+            Err(e) => return Err(e),
+        };
+
+        for rune in runes_entry.iter_mut() {
+            let burn = rune_id_val_map.get(&rune.rune_id).unwrap();
+            let burned = rune.burned.to_u128().unwrap();
+            let bruned_value = burned.checked_add(burn.n()).unwrap();
+            rune.burned = BigDecimal::from_u128(bruned_value).unwrap();
+        }
+
+        Ok(runes_entry)
+    }
 }

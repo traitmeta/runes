@@ -243,19 +243,26 @@ impl<'index> Updater<'index> {
 
 #[cfg(test)]
 mod tests {
+    use crate::dao::new_db_conn;
     use anyhow::Context;
     use bitcoincore_rpc::{Auth, Client};
-
-    use crate::dao::new_db_conn;
+    use dotenv::dotenv;
+    use std::env;
 
     use super::Updater;
 
     #[test]
     fn test_runes() {
-        let conn = new_db_conn("mysql://meta:meta@localhost:3306/runes");
+        env_logger::init();
+        dotenv().ok();
+        let database_url = env::var("DATABASE_URL").unwrap();
+        let bitcoin_url = env::var("BITCOIN_URL").unwrap();
+        let bitcoin_user = env::var("BITCOIN_USER").unwrap();
+        let bitcoin_passwd = env::var("BITCOIN_PASSWD").unwrap();
+        let conn = new_db_conn(database_url.as_str());
         let client = Client::new(
-            "192.168.103.162:8332",
-            Auth::UserPass("foo".to_string(), "TQlDLNY6eJzZ5fYw".to_string()),
+            bitcoin_url.as_str(),
+            Auth::UserPass(bitcoin_user, bitcoin_passwd),
         )
         .with_context(|| format!("failed to connect to Bitcoin Core RPC"))
         .unwrap();
